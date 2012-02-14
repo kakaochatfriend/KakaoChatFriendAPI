@@ -1,0 +1,15 @@
+{
+  "appenders": [
+    { 
+      "type": "file", 
+      "filename": "echobot.log",
+      "maxLogSize": 1024,
+      "backups": 10
+    }
+  ],
+	
+  "levels": {
+    "kakao-bot": "DEBUG",
+    "echobot": "DEBUG"
+  }
+}
