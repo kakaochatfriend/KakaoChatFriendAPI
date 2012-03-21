@@ -2,7 +2,7 @@
 from replice_api import RepliceClient
 import logging
 
-KAKAO_BOT_HOST = "192.168.1.249"
+KAKAO_BOT_HOST = "localhost"
 KAKAO_BOT_PORT = 11111
 LOGIN_ID = "test"
 AUTH_KEY = "test"
@@ -11,7 +11,7 @@ logging.basicConfig(level = 1, format='%(asctime)s %(levelname)-10s %(message)s'
 
 r = RepliceClient(KAKAO_BOT_HOST, KAKAO_BOT_PORT, LOGIN_ID, AUTH_KEY)
 
-def handle_message(replice, user_key, room_key, msg_id, message, country_iso):
+def handle_message(replice, user_key, room_key, msg_id, message, country_iso, attachment = None):
   replice.send_message(user_key, room_key, msg_id, message)
 
 def handle_add(replice, user_key, room_key, msg_id, country_iso):
