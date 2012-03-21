@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from replice_api import RepliceClient
-import asyncore, logging
+import logging
 
-KAKAO_BOT_HOST = "localhost"
+KAKAO_BOT_HOST = "192.168.1.249"
 KAKAO_BOT_PORT = 11111
 LOGIN_ID = "test"
 AUTH_KEY = "test"
@@ -22,11 +22,12 @@ def handle_block(replice, user_key, room_key, msg_id):
 
 def handle_result(replice, code, msg, msg_id):
   if code is not 200:
-    logging.error('error %s(%d), msg_id(%d)'%(msg, code, msg_id))
+    logging.error(u'error %s(%d), msg_id(%d)'%(msg, code, msg_id))
 
-r.on('request', handle_message)
-r.on('result', handle_result)
-r.on('add', handle_add)
-r.on('block', handle_block)
+r.on(u'request', handle_message)
+r.on(u'result', handle_result)
+r.on(u'add', handle_add)
+r.on(u'block', handle_block)
 
-asyncore.loop(use_poll=True)
+r.start()
+r.join()

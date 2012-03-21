@@ -1,5 +1,6 @@
 # replice(kakaobot) API for python by inoran
 
-## Install
+## package dependency
+ * easy_install gevent
+ * easy_install bson
 
-- easy_install bson

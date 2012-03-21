@@ -25,6 +25,8 @@ var results = {
 	701 : "서버 오류로 메세지 전송에 실패 하였습니다"
 };
 
+var no_response_command = [ 'leave', 'block' ]
+
 stdin.pause();
 
 var conn = null;
@@ -34,8 +36,8 @@ var showPrompt = function() { stdout.write('> '); stdin.resume(); };
 var server = net.createServer(function(c) {
 	console.log('connected');
 
-	var sendResult = function(code) {
-		var msg = { type : 'result', code : code, msg : results[code] };
+	var sendResult = function(code, _msg_id) {
+		var msg = { type : 'result', code : code, msg : results[code], msg_id : _msg_id };
 		c.write(bson.BSON.serialize(msg));
 	};
 	
@@ -59,7 +61,7 @@ var server = net.createServer(function(c) {
 				packet.messages.forEach(function(e, i, a) {
 					console.log('... messages ' + i + ' : ' + e);
 				});
-			sendResult(200);
+			sendResult(200, packet.msg_id);
 		}
 	};	
 
@@ -129,10 +131,13 @@ var command_handler = {
 			user_key : params.user_key,
 			room_key : params.room_key,
 			msg_id : msg_id,
-			country_iso : params.country_iso
 		};
+		if( args[0] == 'add' )
+			msg['country_iso'] = params.country_iso;
 		console.log(msg);
 		conn.write(bson.BSON.serialize(msg));
+		if( no_response_command.indexOf(args[0]) != -1 )
+			showPrompt();
 	},
 	'exit' : function(args) {
 		process.exit(0);
