@@ -1,8 +1,8 @@
-# 날씨봇
+# 에코봇
 
-날씨봇은 kakaotalk bot api에 대한 php 구현체 샘플입니다.
+에코봇은 kakaotalk bot api에 대한 php 구현체 샘플입니다.
 
-## weatherbot 구동법
+## echobot 구동법
 
 sudo pecl install mongo
 
