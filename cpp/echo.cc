@@ -34,6 +34,6 @@ int main()
 				return;
 		};
 	});
-	r->start();
+	r->start(4);
 	r->join();
 }

@@ -34,9 +34,12 @@ namespace Replice
 		boost::thread_group threads;
 		boost::asio::io_service& io;
 		tcp::socket	socket_;
-
+		tcp::endpoint endpoint;
+	
 		string recv_buffer;
 		string write_buffer;
+		string login_id;
+		string auth_key;
 		boost::mutex write_lock;
 		
 		unordered_map< string, function<void (const Type type, const mongo::BSONObj& msg)> > handler;
@@ -46,22 +49,44 @@ namespace Replice
 		unordered_map< string, Type > type_map;
 
 	public:
-		Client(boost::asio::io_service& _io, string addr, string port, string login_id, string auth_key)
-			: io(_io), socket_(_io)
+		Client(boost::asio::io_service& _io, string addr, string port, string _login_id, string _auth_key)
+			: io(_io), socket_(_io), login_id(_login_id), auth_key(_auth_key)
 		{
 			tcp::resolver resolver(io);
 			tcp::resolver::query query(addr, port);
-			tcp::endpoint endpoint = *resolver.resolve(query);
+			endpoint = *resolver.resolve(query);
 			
+			type_map["add"] = Type::ADD;		
+			type_map["result"] = Type::RESULT;		
+			type_map["block"] = Type::BLOCK;		
+			type_map["leave"] = Type::LEAVE;		
+			type_map["request"] = Type::REQUEST;		
+
+			connect();
+		}
+		
+		void reconnect(int delay)
+		{
+			if( socket_.is_open() )
+				socket_.close();
+			sleep(delay);
+			connect();
+		}
+
+		void connect()
+		{
 			logged_in = false;	
+			cout << "try to connect " << endpoint << "..." << endl;
 			socket_.async_connect(endpoint,
 				[=](const boost::system::error_code& ec)
 				{
 					if( ec )
 					{
 						cout << ec.message() << endl;
+						reconnect(5);
 						return;
 					}
+					cout << "connected." << endl;
 					mongo::BSONObj msg = BSON( "type" << "login" << "id" << login_id << "pass" << auth_key );
 					boost::asio::async_write(socket_,
 						boost::asio::buffer(msg.objdata(), msg.objsize()),
@@ -72,15 +97,11 @@ namespace Replice
 					);
 				}
 			);
-			type_map["add"] = Type::ADD;		
-			type_map["result"] = Type::RESULT;		
-			type_map["block"] = Type::BLOCK;		
-			type_map["leave"] = Type::LEAVE;		
-			type_map["request"] = Type::REQUEST;		
 		}
 
 		void start(int nthreads = 1)
 		{
+
 			for(int i = 0; i < nthreads; i++)
 				threads.create_thread([this](){this->io.run();});
 		}
@@ -101,6 +122,7 @@ namespace Replice
 					if( ec )
 					{
 						cout << ec.message() << endl;
+						reconnect(5);
 						return;
 					}
 					int len = *reinterpret_cast<int*>(&recv_buffer[0]);
@@ -125,6 +147,7 @@ namespace Replice
 					if( ec )
 					{
 						cout << ec.message() << endl;
+						reconnect(5);
 						return;
 					}
 					io.post([this, recv_buffer](){this->handle_message(mongo::BSONObj(recv_buffer.data()).copy());});
@@ -156,6 +179,7 @@ namespace Replice
 						else
 						{   
 							cout << ec.message() << endl;
+				
 						}   
 					}
 				); 
@@ -208,6 +232,12 @@ namespace Replice
 				return;
 			}
 			string str_type = msg["type"].String();
+			if( str_type == "ping" )
+			{
+				bson::bo pong = BSON( "type" << "pong" << "time" << msg["time"] );
+				send(pong);
+				return;
+			}
 			Type type = Type::UNKNOWN;
 			if( type_map.find(str_type) != type_map.end() )
 				type = type_map[str_type];
@@ -223,6 +253,11 @@ namespace Replice
 			{
 				logged_in = true;
 				cout << "loggin success." << endl;
+			}
+			else
+			{
+				cout << "loggin failed." << endl;
+				exit(1);
 			}
 		}
 
