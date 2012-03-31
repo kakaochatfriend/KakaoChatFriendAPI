@@ -12,15 +12,12 @@ class RepliceClient(object):
     self.host, self.port = host, port
     self.login_id, self.auth_key = login_id, auth_key
     self._socket = None
-    self._recv_queue = queue.Queue()
-    self._send_queue = queue.Queue()
     self._group = pool.Group()
 
     self.handlers = {}
 
     self._send = lambda _: self._send_queue.put(_)
-
-    self.login = False
+    self.sleep = lambda _: gevent.sleep(_)
 
   def convert_unicode(self, s):
     if not isinstance(s, unicode):
@@ -48,11 +45,19 @@ class RepliceClient(object):
       addr = (socket.gethostbyname(self.host), self.port)
     except socket.gaierror:
       logging.error('hostname not found')
-      raise
-
+      return
+    
     logging.info(u'try to connect ... %r'%(addr,))
     self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    self._socket.connect(addr)
+    try:
+      self._socket.connect(addr)
+    except socket.error:
+      logging.error('failed to connect ... %r'%(addr,))
+      return
+
+    self._recv_queue = queue.Queue()
+    self._send_queue = queue.Queue()
+    self.login = False
     self._group.spawn(self._send_loop)
     self._group.spawn(self._process_loop)
     self._group.spawn(self._recv_loop)
@@ -62,13 +67,26 @@ class RepliceClient(object):
     self._send({ u'type' : u'login', u'id' : unicode(self.login_id), u'pass' : unicode(self.auth_key) })
 
   def _recv_loop(self):
-    while True:
-      self._recv_queue.put(self._socket.recv(8192))
+    try:
+      while True:
+        data = self._socket.recv(8192)
+        if len(data) is not 0:
+          self._recv_queue.put(data)
+        else:
+          break
+    except:
+      pass
+    logging.error('stop recv loop...')
+    self._recv_queue.put('end')
 
   def _process_loop(self):
     buf = ''
     while True:
-      buf += self._recv_queue.get()
+      data = self._recv_queue.get()
+      if data == 'end':
+        logging.error('stop process loop...')
+        break
+      buf += data
       while len(buf) > 4:
         n = bson.network._bintoint(buf[:4])
         if len(buf) < n:
@@ -83,9 +101,13 @@ class RepliceClient(object):
             logging.info(u'login success.')
           else:
             logging.error(u'login error : code(%(code)d) msg(%(msg)s)'%packet)
+            self.stop()
 
         else: 
           event_type = packet.pop(u'type')
+          if event_type == u'ping':
+            self._send({u'type' : u'pong', u'time' : packet[u'time'] })
+            continue
           if u'message' in packet:
             packet[u'message'] = packet[u'message'].encode('utf-8')
           if event_type in self.handlers:
@@ -94,10 +116,15 @@ class RepliceClient(object):
             logging.warning(u'unhandled event : %s'%event_type)
 
   def _send_loop(self):
-    while True:
-      packet = self._send_queue.get()
-      self._socket.sendall(bson.dumps(packet))
-      logging.debug(u'sent ' + repr(packet))
+    try:
+      while True:
+        packet = self._send_queue.get()
+        self._socket.sendall(bson.dumps(packet))
+        logging.debug(u'sent ' + repr(packet))
+    except:
+      pass
+    log.error('stop send loop...')
+    self._recv_queue.put('end')
 
   def on(self, event_type, func):
     self.handlers[event_type] = func
@@ -110,4 +137,9 @@ class RepliceClient(object):
 
   def join(self):
     self._group.join()
+    if self._socket is not None:
+      self._socket.close()
+      self._socket = None
+
+
 
