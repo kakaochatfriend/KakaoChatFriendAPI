@@ -28,11 +28,17 @@ import com.mongodb.util.JSON;
  */
 public class App {
 
-	public static String host = "localhost";
-	public static int port = 11111;
+	public static String host = "127.0.0.1";
+	public static int port = 8080;
+
+	private static NioClientSocketChannelFactory clientSocketChannel = new NioClientSocketChannelFactory(
+				Executors.newCachedThreadPool(),
+				Executors.newCachedThreadPool());
+
+	private static ClientBootstrap bootstrap = new ClientBootstrap(clientSocketChannel);
 
 	public static final BSONObject loginPkt = (BSONObject) JSON
-			.parse("{ \"type\":\"login\", \"id\":\"tayobot\", \"pass\":\"pass\" } ");
+			.parse("{ \"type\":\"login\", \"id\":\"testtest\", \"pass\":\"testtest\" } ");
 
 	public static void main(String[] args) {
 
@@ -47,11 +53,6 @@ public class App {
 	}
 
 	public static void createClient() {
-		NioClientSocketChannelFactory clientSocketChannel = new NioClientSocketChannelFactory(
-				Executors.newCachedThreadPool(),
-				Executors.newCachedThreadPool());
-
-		ClientBootstrap bootstrap = new ClientBootstrap(clientSocketChannel);
 
 		bootstrap.setOption("connectTimeoutMillis", 1000);
 		bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
@@ -128,6 +129,11 @@ public class App {
 					bOut.put("message", "방가방가!\n에코봇에 친구추가를 하다늬 ㄲㄲㄲ");
 
 					e.getChannel().write(BSON.encode(bOut));
+				} else if (type.equals("ping")) {
+					BSONObject bOut = new BasicBSONObject();
+					bOut.put("type", "pong");
+					bOut.put("time", (Long)bsonIn.get("time"));
+					e.getChannel().write(BSON.encode(bOut));
 				}
 			} else {
 				System.out.println(obj);
@@ -143,8 +149,11 @@ public class App {
 		
 		@Override
 		public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
-			System.out.println("connection closed.");
-			System.exit(0);
+			System.out.println("connection closed. Retry 1sec later");
+			//System.exit(0);
+			try{ Thread.sleep(1000); } catch(Exception ex) { }
+			ChannelFuture future = bootstrap.connect(new InetSocketAddress( host, port));
+			future.awaitUninterruptibly();
 		}
 
 		@Override
