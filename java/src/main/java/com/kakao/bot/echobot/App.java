@@ -15,6 +15,7 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.ChannelStateEvent;
+import org.jboss.netty.channel.ChannelState;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
@@ -149,15 +150,21 @@ public class App {
 		
 		@Override
 		public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
-			System.out.println("connection closed. Retry 1sec later");
-			//System.exit(0);
+			System.out.println("connection disconnected.");
+			if( e.getChannel().isOpen() )
+				e.getChannel().close();
+		}
+
+		@Override
+		public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) {
+			System.out.println("Retry 1sec later");
 			try{ Thread.sleep(1000); } catch(Exception ex) { }
-			ChannelFuture future = bootstrap.connect(new InetSocketAddress( host, port));
-			future.awaitUninterruptibly();
+			bootstrap.connect(new InetSocketAddress(host, port));
 		}
 
 		@Override
 		public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
+			System.out.println(e.getCause());
 			e.getChannel().close();
 		}
 
