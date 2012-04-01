@@ -3,9 +3,9 @@ from replice_api import RepliceClient
 import logging
 
 KAKAO_BOT_HOST = "localhost"
-KAKAO_BOT_PORT = 11111
-LOGIN_ID = "test"
-AUTH_KEY = "test"
+KAKAO_BOT_PORT = 8080
+LOGIN_ID = "testtest"
+AUTH_KEY = "testtest"
 
 logging.basicConfig(level = 1, format='%(asctime)s %(levelname)-10s %(message)s', datefmt='%m-%d %H:%M:%S')
 
@@ -29,5 +29,7 @@ r.on(u'result', handle_result)
 r.on(u'add', handle_add)
 r.on(u'block', handle_block)
 
-r.start()
-r.join()
+while True:
+  r.start()
+  r.join()
+  r.sleep(5)

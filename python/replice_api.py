@@ -84,6 +84,7 @@ class RepliceClient(object):
     while True:
       data = self._recv_queue.get()
       if data == 'end':
+        self._send(data)
         logging.error('stop process loop...')
         break
       buf += data
@@ -119,6 +120,8 @@ class RepliceClient(object):
     try:
       while True:
         packet = self._send_queue.get()
+        if packet == 'end':
+          break;
         self._socket.sendall(bson.dumps(packet))
         logging.debug(u'sent ' + repr(packet))
     except:
@@ -140,6 +143,4 @@ class RepliceClient(object):
     if self._socket is not None:
       self._socket.close()
       self._socket = None
-
-
 
