@@ -126,7 +126,7 @@ class RepliceClient(object):
         logging.debug(u'sent ' + repr(packet))
     except:
       pass
-    log.error('stop send loop...')
+    logging.error('stop send loop...')
     self._recv_queue.put('end')
 
   def on(self, event_type, func):
