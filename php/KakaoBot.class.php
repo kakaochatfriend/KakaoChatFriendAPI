@@ -113,9 +113,9 @@ class BotMessageHandler {
 
 	function onPing($bot, $req) {
 		echo "ping arrived";
-		$res = array("type" => "pong", "time" => $req["time"]);
+		$res = array("type" => "pong", "time" => (int)$req["time"]);
 
-		$bot -> send(res);
+		$bot -> send($res);
 	}
 
 	function onResult($bot, $req) {
