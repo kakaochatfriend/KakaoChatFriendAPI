@@ -3,6 +3,7 @@ from gevent import monkey, queue, socket, pool
 
 import bson
 import logging
+import time
 
 monkey.patch_all()
 
@@ -58,13 +59,21 @@ class RepliceClient(object):
     self._recv_queue = queue.Queue()
     self._send_queue = queue.Queue()
     self.login = False
+    self.shutdown = False
     self._group.spawn(self._send_loop)
     self._group.spawn(self._process_loop)
     self._group.spawn(self._recv_loop)
+    self._group.spawn(self._ping_loop)
 
     gevent.sleep(0)
 
     self._send({ u'type' : u'login', u'id' : unicode(self.login_id), u'pass' : unicode(self.auth_key) })
+
+  def _ping_loop(self):
+    while not self.shutdown:
+      if self.login:
+        self._send({u'type': u'ping', u'time': int(time.time()*1000)})
+      gevent.sleep(2*60)
 
   def _recv_loop(self):
     try:
@@ -78,6 +87,7 @@ class RepliceClient(object):
       pass
     logging.error('stop recv loop...')
     self._recv_queue.put('end')
+    self.shutdown = True
 
   def _process_loop(self):
     buf = ''
@@ -109,12 +119,15 @@ class RepliceClient(object):
           if event_type == u'ping':
             self._send({u'type' : u'pong', u'time' : packet[u'time'] })
             continue
+          if event_type == u'pong':
+            continue
           if u'message' in packet:
             packet[u'message'] = packet[u'message'].encode('utf-8')
           if event_type in self.handlers:
             self.handlers[event_type](self, **packet)
           else:
             logging.warning(u'unhandled event : %s'%event_type)
+    self.shutdown = True
 
   def _send_loop(self):
     try:
@@ -128,6 +141,7 @@ class RepliceClient(object):
       pass
     logging.error('stop send loop...')
     self._recv_queue.put('end')
+    self.shutdown = True
 
   def on(self, event_type, func):
     self.handlers[event_type] = func
