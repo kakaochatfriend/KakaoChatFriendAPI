@@ -5,6 +5,7 @@
 #include <vector>
 #include <set>
 #include <unordered_map>
+#include <chrono>
 
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
@@ -17,6 +18,7 @@
 namespace Replice
 {
 	using namespace std;
+	using namespace std::chrono;
 	using boost::asio::ip::tcp;
 
 	enum Type
@@ -104,6 +106,17 @@ namespace Replice
 
 			for(int i = 0; i < nthreads; i++)
 				threads.create_thread([this](){this->io.run();});
+			threads.create_thread([this]{
+				while(1)
+				{
+					if( this->logged_in )
+					{
+						bson::bo ping = BSON( "type" << "ping" << "time" << (long long)duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() );
+						this->send(ping);
+					}
+					sleep(10);
+				}
+			});
 		}
 
 		void join()
@@ -238,6 +251,8 @@ namespace Replice
 				send(pong);
 				return;
 			}
+			else if( str_type == "pong" ) return;
+
 			Type type = Type::UNKNOWN;
 			if( type_map.find(str_type) != type_map.end() )
 				type = type_map[str_type];
