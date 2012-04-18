@@ -2,6 +2,7 @@ package com.kakao.bot.echobot;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Executors;
 
@@ -10,12 +11,12 @@ import org.bson.BSONObject;
 import org.bson.BasicBSONObject;
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
+import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.ChannelStateEvent;
-import org.jboss.netty.channel.ChannelState;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
@@ -29,17 +30,11 @@ import com.mongodb.util.JSON;
  */
 public class App {
 
-	public static String host = "127.0.0.1";
+	public static String host = "localhost";
 	public static int port = 8080;
 
 	private static NioClientSocketChannelFactory clientSocketChannel = new NioClientSocketChannelFactory(
-				Executors.newCachedThreadPool(),
-				Executors.newCachedThreadPool());
-
-	private static ClientBootstrap bootstrap = new ClientBootstrap(clientSocketChannel);
-
-	public static final BSONObject loginPkt = (BSONObject) JSON
-			.parse("{ \"type\":\"login\", \"id\":\"testtest\", \"pass\":\"testtest\" } ");
+			Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
 
 	public static void main(String[] args) {
 
@@ -54,6 +49,9 @@ public class App {
 	}
 
 	public static void createClient() {
+		final ClientBootstrap bootstrap = new ClientBootstrap(
+				clientSocketChannel);
+		final BotProtocol botImpl = new EchoBotProtocolImpl();
 
 		bootstrap.setOption("connectTimeoutMillis", 1000);
 		bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
@@ -61,112 +59,61 @@ public class App {
 				ChannelPipeline pipeline = pipeline();
 				pipeline.addLast("decoder", new BsonDecoder());
 				pipeline.addLast("encoder", new BsonEncoder());
-				pipeline.addLast("handler", new EchoHandler());
+				pipeline.addLast("handler", new BotHandler(bootstrap, botImpl,
+						"testtest", "testtest"));
 				return pipeline;
 			}
 		});
 
-		ChannelFuture future = bootstrap.connect(new InetSocketAddress(
-				host, port));
-		future.awaitUninterruptibly();
-
+		bootstrap.setOption("remoteAddress", new InetSocketAddress(host, port));
+		bootstrap.connect();
 	}
 
-	public static class EchoHandler extends SimpleChannelUpstreamHandler {
-
+	public static class EchoBotProtocolImpl extends BotProtocol {
 		@Override
-		public void messageReceived(ChannelHandlerContext ctx,
-				final MessageEvent e) {
-			Object obj = e.getMessage();
-			if (obj instanceof byte[]) {
-				BSONObject bsonIn = BSON.decode((byte[]) obj);
+		public void handle_request(Channel channel, BSONObject bsonIn) {
+			try {
+				long user_key = (Long) bsonIn.get("user_key");
+				long room_key = (Long) bsonIn.get("room_key");
+				int msgId = (Integer) bsonIn.get("msg_id");
 
-				System.out.println("BsonIn = " + bsonIn);
+				String message = (String) bsonIn.get("message");
 
-				String type = (String) bsonIn.get("type");
-				if (type == null) {
-					// error
-					System.out.println("null");
-				} else if (type.equals("request")) {
-					try {
-					long user_key = (Long) bsonIn.get("user_key");
-					long room_key = (Long) bsonIn.get("room_key");
-					int msgId = (Integer) bsonIn.get("msg_id");
+				BSONObject bsonOut = new BasicBSONObject();
+				bsonOut.put("type", "response");
+				bsonOut.put("room_key", room_key);
+				bsonOut.put("user_key", user_key);
+				bsonOut.put("msg_id", msgId);
+				bsonOut.put("message", "1:" + message);
+				List msgs = new ArrayList();
+				msgs.add("2:" + message);
+				msgs.add("3:"
+						+ (new StringBuffer(message)).reverse().toString());
 
-					String message = (String) bsonIn.get("message");
+				logger.debug("OUT => " + bsonOut);
 
-					BSONObject bsonOut = new BasicBSONObject();
-					bsonOut.put("type", "response");
-					bsonOut.put("room_key", room_key);
-					bsonOut.put("user_key", user_key);
-					bsonOut.put("msg_id", msgId);
-					bsonOut.put("message", "1:" + message);
-					List msgs = new ArrayList();
-					msgs.add("2:" + message);
-					msgs.add("3:"
-							+ (new StringBuffer(message)).reverse().toString());
-
-					System.out.println("OUT => " + bsonOut);
-
-					e.getChannel().write(BSON.encode(bsonOut));
-					} catch (Exception e1) {
-						e1.printStackTrace();
-					}
-
-				} else if (type.equals("login")) {
-					System.out.println("login ");
-				} else if (type.equals("result")) {
-					System.out.println("result ");
-				} else if (type.equals("add")) {
-					long user_key = (Long) bsonIn.get("user_key");
-					long room_key = (Long) bsonIn.get("room_key");
-					int msgId = (Integer) bsonIn.get("msg_id");
-
-					BSONObject bOut = new BasicBSONObject();
-					bOut.put("type", "response");
-					bOut.put("room_key", room_key);
-					bOut.put("user_key", user_key);
-					bOut.put("msg_id", msgId);
-					bOut.put("message", "방가방가!\n에코봇에 친구추가를 하다늬 ㄲㄲㄲ");
-
-					e.getChannel().write(BSON.encode(bOut));
-				} else if (type.equals("ping")) {
-					BSONObject bOut = new BasicBSONObject();
-					bOut.put("type", "pong");
-					bOut.put("time", (Long)bsonIn.get("time"));
-					e.getChannel().write(BSON.encode(bOut));
-				}
-			} else {
-				System.out.println(obj);
+				channel.write(BSON.encode(bsonOut));
+			} catch (Exception e1) {
+				e1.printStackTrace();
 			}
 		}
 
 		@Override
-		public void channelConnected(ChannelHandlerContext ctx,
-				ChannelStateEvent e) {
-			System.out.println("connected.");
-			ctx.getChannel().write(loginPkt);
-		}
-		
-		@Override
-		public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
-			System.out.println("connection disconnected.");
-			if( e.getChannel().isOpen() )
-				e.getChannel().close();
-		}
+		public void handle_add(Channel channel, BSONObject e) {
+			long userKey = (Long) e.get("user_key");
+			long roomKey = (Long) e.get("room_key");
+			int msgId = (Integer) e.get("msg_id");
 
-		@Override
-		public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) {
-			System.out.println("Retry 1sec later");
-			try{ Thread.sleep(1000); } catch(Exception ex) { }
-			bootstrap.connect(new InetSocketAddress(host, port));
-		}
+			BSONObject bOut = new BasicBSONObject();
+			bOut.put("type", "response");
+			bOut.put("room_key", roomKey);
+			bOut.put("user_key", userKey);
+			bOut.put("msg_id", msgId);
+			bOut.put("message", "thank you for add me.");
 
-		@Override
-		public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
-			System.out.println(e.getCause());
-			e.getChannel().close();
-		}
+			channel.write(BSON.encode(bOut));
 
+			logger.debug("LOGIN user(%d) ", userKey);
+		}
 	}
 }
