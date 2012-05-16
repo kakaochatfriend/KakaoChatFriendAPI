@@ -20,7 +20,7 @@ import org.jboss.netty.util.Timer;
 public class EchoApp {
 
   private static String host = "localhost";
-  private static int port = 10010;
+  private static int port = 11111;
 
   /**
    * OioClientSocketChannelFactory는 request가 많이 몰릴 경우 Live-Lock 현상이 발생했음

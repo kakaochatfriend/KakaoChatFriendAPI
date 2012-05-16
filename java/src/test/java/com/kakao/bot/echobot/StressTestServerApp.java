@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 public class StressTestServerApp
 {
   private static final Logger LOG = LoggerFactory.getLogger(StressTestServerApp.class);
-  private static int port = 10010;
+  private static int port = 11111;
   private static int requestPerSeconds  = 10000;
   private static int testTime = 20;
   
