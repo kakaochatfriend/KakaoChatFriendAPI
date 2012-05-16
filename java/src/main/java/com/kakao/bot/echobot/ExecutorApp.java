@@ -77,7 +77,7 @@ public class ExecutorApp {
      */
     bootstrap.setOption("tcpNoDelay", true);
     /**
-     * KeepAlive는 종단 시스템중 하나가 다움될 때 발생할 수 있는 한쪽만 열린 상태를 정리하는 것 
+     * KeepAlive는 종단 시스템중 하나가 다운될 때 발생할 수 있는 한쪽만 열린 상태를 정리하는 것 
      *  - Checking for dead peers
      *  - Preventing disconnection due to network inactivity
      */
@@ -103,8 +103,9 @@ public class ExecutorApp {
         pipeline.addLast("executor2",     executionHandler2);
         // 1분에 한번씩 ping check
         pipeline.addLast("pingpong",      new PingPongHandler(bootstrap, timer, 60*1000));    
-        // 100ms뒤에 응답을 주는 Echo
-        pipeline.addLast("handler",       new EchoBotHandler(bootstrap, timer, "tayo", "pass", 100)); 
+
+        // 10ms뒤에 응답을 주는 Echo
+        pipeline.addLast("handler",       new EchoBotHandler(bootstrap, timer, 10,"tayobot", "pass")); 
         return pipeline;
       }
     });

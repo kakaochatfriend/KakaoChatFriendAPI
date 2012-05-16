@@ -60,7 +60,15 @@ public class EchoBotHandler extends SimpleChannelUpstreamHandler{
 	  }
   }
 
-	public EchoBotHandler(final ClientBootstrap bootstrap, Timer timer, String id, String pass, int delay) {
+	/**
+	 * 
+	 * @param bootstrap
+	 * @param timer        delay용 timer
+   * @param delay        echo를 보낼때 delay를 줄지 여부, 단위:ms
+	 * @param id           login용 id
+	 * @param pass         login용 pass
+	 */
+	public EchoBotHandler(final ClientBootstrap bootstrap, Timer timer, int delay, String id, String pass) {
     this.bootstrap = bootstrap;
     this.timer = timer;
     this.id = id;
