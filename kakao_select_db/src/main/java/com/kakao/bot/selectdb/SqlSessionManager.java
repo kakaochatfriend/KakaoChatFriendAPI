@@ -13,10 +13,14 @@ import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
 public class SqlSessionManager {
 	public static SqlSessionFactory sqlSession;
 	static {
-		DataSource dataSource = new PooledDataSource("com.mysql.jdbc.Driver",
+		PooledDataSource dataSource = new PooledDataSource("com.mysql.jdbc.Driver",
 				"jdbc:mysql://localhost:3306/test?useTimezone=true&amp;serverTimezone=UTC&amp;characterEncoding=utf8&amp;debugSQL=true",
 				"root",
 				"");
+		dataSource.setPoolMaximumActiveConnections(10);
+		dataSource.setPoolMaximumIdleConnections(2);
+		dataSource.setPoolPingEnabled(true);
+		dataSource.setPoolPingQuery("SELECT 1");
 
 		TransactionFactory transactionFactory = new JdbcTransactionFactory();
 		Environment environment = new Environment( "dev", transactionFactory, dataSource );
